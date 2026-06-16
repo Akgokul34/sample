@@ -6,3 +6,4 @@ dump.py
 *.sqlite
 *.sql
 *.txt
+project_dump.txt
