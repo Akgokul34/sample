@@ -1,0 +1,7 @@
+__pycache__
+venv
+.env
+dump.py
+*.pyc
+*.sqlite
+*.sql

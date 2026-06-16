@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIC Platform — Laboratory Instrument Communication</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+
+        :root {
+            --sidebar-bg: linear-gradient(180deg, #1e1b4b, #312e81, #3730a3);
+            --bg: #f0f2f8;
+            --surface: #ffffff;
+            --text: #1e1b4b;
+            --text-sec: #4c4683;
+            --text-muted: #8b85b1;
+            --border: #e4e0f3;
+            --indigo: #4f46e5;
+            --indigo-light: #6366f1;
+            --indigo-soft: #eef2ff;
+            --violet: #7c3aed;
+            --rose: #e11d48;
+            --rose-soft: #fff1f2;
+            --emerald: #059669;
+            --emerald-soft: #ecfdf5;
+            --amber: #d97706;
+            --amber-soft: #fffbeb;
+            --sky: #0284c7;
+            --sky-soft: #e0f2fe;
+            --r: 14px;
+            --rs: 8px;
+        }
+
+        body {
+            font-family:'Outfit',-apple-system,sans-serif;
+            background:var(--bg);
+            color:var(--text);
+            min-height:100vh;
+            -webkit-font-smoothing:antialiased;
+        }
+
+        /* ═══ SIDEBAR ═══ */
+        .sidebar {
+            position:fixed;top:0;left:0;bottom:0;width:250px;
+            background:var(--sidebar-bg);
+            display:flex;flex-direction:column;z-index:100;
+            transition:transform 0.35s cubic-bezier(.4,0,.2,1);
+        }
+        .sb-brand {
+            padding:28px 22px 24px;
+        }
+        .sb-brand h1 {
+            font-size:20px;font-weight:900;color:#fff;letter-spacing:-0.5px;
+        }
+        .sb-brand p { font-size:11px;color:rgba(255,255,255,0.5);margin-top:3px; }
+        .sb-nav { padding:8px 12px;flex:1;overflow-y:auto; }
+        .sb-label {
+            font-size:9px;font-weight:800;color:rgba(255,255,255,0.3);
+            text-transform:uppercase;letter-spacing:1.5px;
+            padding:16px 14px 6px;
+        }
+        .sb-item {
+            display:flex;align-items:center;gap:11px;
+            width:100%;padding:11px 14px;border:none;
+            border-radius:var(--rs);font-size:13.5px;font-weight:500;
+            color:rgba(255,255,255,0.6);background:none;
+            cursor:pointer;font-family:inherit;text-align:left;
+            transition:all 0.2s;margin-bottom:2px;
+        }
+        .sb-item:hover { background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.9); }
+        .sb-item.on {
+            background:rgba(255,255,255,0.12);color:#fff;font-weight:700;
+            box-shadow:inset 3px 0 0 #a78bfa;
+        }
+        .sb-item svg { width:18px;height:18px;flex-shrink:0;opacity:0.7; }
+        .sb-item.on svg { opacity:1; }
+        .sb-foot {
+            padding:16px 22px;border-top:1px solid rgba(255,255,255,0.08);
+            font-size:11px;color:rgba(255,255,255,0.4);
+            display:flex;align-items:center;gap:7px;
+        }
+        .sb-dot { width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 8px #34d399; animation:glow 2s infinite; }
+        @keyframes glow { 0%,100%{box-shadow:0 0 6px #34d399;} 50%{box-shadow:0 0 14px #34d399;} }
+
+        /* ═══ HAMBURGER ═══ */
+        .ham {
+            display:none;position:fixed;top:16px;left:16px;z-index:200;
+            width:42px;height:42px;border-radius:var(--rs);
+            background:var(--surface);border:1px solid var(--border);
+            box-shadow:0 2px 8px rgba(0,0,0,0.08);
+            cursor:pointer;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+        }
+        .ham span { display:block;width:18px;height:2px;background:var(--text);border-radius:1px; }
+        .ov { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:99; }
+        .ov.show { display:block; }
+
+        /* ═══ MAIN ═══ */
+        .main { margin-left:250px;min-height:100vh; }
+        .topbar {
+            position:sticky;top:0;z-index:50;
+            background:rgba(240,242,248,0.88);backdrop-filter:blur(12px);
+            border-bottom:1px solid var(--border);
+            padding:18px 30px;display:flex;align-items:center;justify-content:space-between;
+        }
+        .topbar h2 { font-size:20px;font-weight:800;letter-spacing:-0.3px; }
+        .content { padding:26px 30px;max-width:1300px; }
+
+        /* ═══ PAGES ═══ */
+        .pg{display:none;} .pg.on{display:block;animation:rise .3s ease;}
+        @keyframes rise{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+        /* ═══ STAT CARDS ═══ */
+        .stats { display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:26px; }
+        .st {
+            background:var(--surface);border-radius:var(--r);padding:22px;
+            position:relative;overflow:hidden;
+            border:1px solid var(--border);
+            box-shadow:0 1px 3px rgba(0,0,0,0.04);
+            transition:transform 0.25s, box-shadow 0.25s;
+        }
+        .st:hover { transform:translateY(-3px);box-shadow:0 8px 25px rgba(0,0,0,0.07); }
+        .st::before {
+            content:'';position:absolute;top:0;left:0;width:4px;height:100%;border-radius:0 4px 4px 0;
+        }
+        .st:nth-child(1)::before { background:var(--indigo); }
+        .st:nth-child(2)::before { background:var(--emerald); }
+        .st:nth-child(3)::before { background:var(--amber); }
+        .st:nth-child(4)::before { background:var(--sky); }
+        .st-icon {
+            width:44px;height:44px;border-radius:12px;
+            display:flex;align-items:center;justify-content:center;
+            font-size:20px;margin-bottom:14px;
+        }
+        .st:nth-child(1) .st-icon { background:var(--indigo-soft);color:var(--indigo); }
+        .st:nth-child(2) .st-icon { background:var(--emerald-soft);color:var(--emerald); }
+        .st:nth-child(3) .st-icon { background:var(--amber-soft);color:var(--amber); }
+        .st:nth-child(4) .st-icon { background:var(--sky-soft);color:var(--sky); }
+        .st-lbl { font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px; }
+        .st-val { font-size:32px;font-weight:900;margin:6px 0 2px;letter-spacing:-1.5px; }
+        .st-sub { font-size:11px;font-weight:600; }
+        .st-sub.up { color:var(--emerald); }
+
+        /* ═══ CARD ═══ */
+        .card {
+            background:var(--surface);border:1px solid var(--border);
+            border-radius:var(--r);overflow:hidden;
+            box-shadow:0 1px 3px rgba(0,0,0,0.04);
+            transition:box-shadow 0.25s;
+        }
+        .card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.06); }
+        .card-h {
+            padding:16px 20px;border-bottom:1px solid var(--border);
+            font-size:14px;font-weight:700;display:flex;align-items:center;gap:9px;
+        }
+        .card-h .ch-icon {
+            width:28px;height:28px;border-radius:8px;
+            display:flex;align-items:center;justify-content:center;font-size:14px;
+        }
+        .card-b { padding:20px; }
+
+        /* ═══ GRID ═══ */
+        .g2 { display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:24px; }
+
+        /* ═══ FORMS ═══ */
+        .fg { margin-bottom:14px; }
+        .fg label {
+            display:block;font-size:11px;font-weight:700;color:var(--text-muted);
+            margin-bottom:6px;text-transform:uppercase;letter-spacing:0.6px;
+        }
+        .fc {
+            width:100%;padding:10px 14px;
+            border:2px solid var(--border);border-radius:var(--rs);
+            font-size:13px;font-family:inherit;color:var(--text);
+            background:var(--surface);transition:border-color 0.2s,box-shadow 0.2s;
+        }
+        .fc:focus { outline:none;border-color:var(--indigo);box-shadow:0 0 0 4px var(--indigo-soft); }
+        .fc::placeholder { color:var(--text-muted); }
+        select.fc { cursor:pointer; }
+
+        /* ═══ BUTTONS ═══ */
+        .btn {
+            display:inline-flex;align-items:center;gap:7px;
+            padding:10px 20px;border-radius:var(--rs);
+            font-size:13px;font-weight:700;font-family:inherit;
+            cursor:pointer;border:none;transition:all 0.2s;
+        }
+        .btn-primary {
+            background:linear-gradient(135deg,var(--indigo),var(--violet));
+            color:#fff;box-shadow:0 4px 14px rgba(79,70,229,0.3);
+        }
+        .btn-primary:hover { transform:translateY(-1px);box-shadow:0 6px 20px rgba(79,70,229,0.35); }
+        .btn-primary:active { transform:scale(0.97); }
+        .btn-soft { background:var(--indigo-soft);color:var(--indigo);border:1px solid #c7d2fe; }
+        .btn-soft:hover { background:#dbeafe; }
+        .btn-green {
+            background:linear-gradient(135deg,#059669,#10b981);
+            color:#fff;box-shadow:0 4px 14px rgba(5,150,105,0.25);
+        }
+        .btn-green:hover { transform:translateY(-1px); }
+        .btn-ghost { background:none;color:var(--text-sec);border:1px solid var(--border); }
+        .btn-ghost:hover { background:var(--bg); }
+        .btn-full { width:100%;justify-content:center; }
+
+        /* ═══ TABLE ═══ */
+        .tbl { width:100%;border-collapse:collapse; }
+        .tbl thead th {
+            text-align:left;padding:11px 16px;font-size:10px;font-weight:800;
+            color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;
+            background:var(--bg);border-bottom:1px solid var(--border);
+        }
+        .tbl tbody td { padding:12px 16px;font-size:13px;color:var(--text-sec);border-bottom:1px solid var(--border); }
+        .tbl tbody tr { transition:background 0.15s; }
+        .tbl tbody tr:hover { background:#faf9ff; }
+        .tbl tbody tr:last-child td { border-bottom:none; }
+
+        /* ═══ BADGE ═══ */
+        .badge {
+            display:inline-flex;align-items:center;gap:4px;
+            padding:4px 10px;border-radius:20px;
+            font-size:11px;font-weight:700;
+        }
+        .badge-green { background:var(--emerald-soft);color:var(--emerald); }
+        .badge-amber { background:var(--amber-soft);color:var(--amber); }
+        .badge-blue { background:var(--indigo-soft);color:var(--indigo); }
+        .badge-sky { background:var(--sky-soft);color:var(--sky); }
+        .badge-rose { background:var(--rose-soft);color:var(--rose); }
+
+        /* ═══ MACHINE CARDS ═══ */
+        .m-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px; }
+        .mc {
+            background:var(--surface);border:1px solid var(--border);
+            border-radius:var(--r);padding:20px;
+            box-shadow:0 1px 3px rgba(0,0,0,0.04);
+            transition:all 0.25s;
+        }
+        .mc:hover { transform:translateY(-3px);box-shadow:0 8px 25px rgba(0,0,0,0.07);border-color:#c7d2fe; }
+        .mc-top { display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px; }
+        .mc-top h4 { font-size:15px;font-weight:800; }
+        .mc-row { display:flex;justify-content:space-between;padding:5px 0;font-size:12px; }
+        .mc-row .k { color:var(--text-muted); }
+        .mc-row .v { color:var(--text-sec);font-weight:600; }
+
+        /* ═══ HEALTH ═══ */
+        .hr { display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--border);font-size:13px; }
+        .hr:last-child { border:none; }
+
+        /* ═══ TOAST ═══ */
+        .toasts { position:fixed;top:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:8px; }
+        .toast {
+            padding:13px 20px;border-radius:var(--rs);
+            font-size:13px;font-weight:600;font-family:inherit;
+            display:flex;align-items:center;gap:9px;
+            animation:tIn .3s ease,tOut .3s ease 2.7s forwards;
+            box-shadow:0 8px 30px rgba(0,0,0,0.12);
+        }
+        .toast-ok { background:#fff;border-left:4px solid var(--emerald);color:var(--emerald); }
+        .toast-err { background:#fff;border-left:4px solid var(--rose);color:var(--rose); }
+        @keyframes tIn{from{transform:translateX(100%);opacity:0;}}
+        @keyframes tOut{to{opacity:0;transform:translateY(-8px);}}
+
+        .empty { text-align:center;padding:44px 20px;color:var(--text-muted); }
+        .empty-icon { font-size:36px;margin-bottom:10px;opacity:0.6; }
+        .empty p { font-size:13px; }
+
+        /* ═══ RESPONSIVE ═══ */
+        @media(max-width:1100px){ .stats{grid-template-columns:repeat(2,1fr);} }
+        @media(max-width:900px){ .g2{grid-template-columns:1fr;} }
+        @media(max-width:768px){
+            .ham{display:flex;}
+            .sidebar{transform:translateX(-100%);}
+            .sidebar.open{transform:translateX(0);box-shadow:6px 0 30px rgba(0,0,0,0.15);}
+            .main{margin-left:0;}
+            .topbar{padding:18px 18px 18px 66px;}
+            .content{padding:18px;}
+            .m-grid{grid-template-columns:1fr;}
+        }
+        @media(max-width:480px){
+            .stats{grid-template-columns:1fr 1fr;gap:10px;}
+            .st{padding:16px;}
+            .st-val{font-size:26px;}
+            .topbar h2{font-size:16px;}
+        }
+    </style>
+</head>
+<body>
+
+<div class="toasts" id="toasts"></div>
+<div class="ov" id="ov" onclick="tog()"></div>
+<button class="ham" id="ham" onclick="tog()"><span></span><span></span><span></span></button>
+
+<aside class="sidebar" id="sb">
+    <div class="sb-brand">
+        <h1>⚕️ LIC Platform</h1>
+        <p>Laboratory Communication</p>
+    </div>
+    <nav class="sb-nav">
+        <div class="sb-label">Main</div>
+        <button class="sb-item on" onclick="go('dash')" id="n-dash">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+            Dashboard
+        </button>
+        <button class="sb-item" onclick="go('pat')" id="n-pat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            Patients
+        </button>
+        <button class="sb-item" onclick="go('mach')" id="n-mach">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3h-8l-2 4h12z"/></svg>
+            Machines
+        </button>
+        <div class="sb-label">Operations</div>
+        <button class="sb-item" onclick="go('ord')" id="n-ord">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+            Orders
+        </button>
+        <button class="sb-item" onclick="go('res')" id="n-res">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>
+            Results
+        </button>
+    </nav>
+    <div class="sb-foot"><span class="sb-dot"></span> TCP Listening · 5601</div>
+</aside>
+
+<main class="main">
+    <div class="topbar">
+        <h2 id="pT">Dashboard</h2>
+        <button class="btn btn-ghost" onclick="location.reload()">↻ Refresh</button>
+    </div>
+    <div class="content">
+
+        <!-- DASHBOARD -->
+        <div class="pg on" id="p-dash">
+            <div class="stats">
+                <div class="st">
+                    <div class="st-icon">🔬</div>
+                    <div class="st-lbl">Active Machines</div>
+                    <div class="st-val" id="s1">0</div>
+                    <div class="st-sub up">● Online</div>
+                </div>
+                <div class="st">
+                    <div class="st-icon">👤</div>
+                    <div class="st-lbl">Patients</div>
+                    <div class="st-val" id="s2">0</div>
+                    <div class="st-sub up">Registered</div>
+                </div>
+                <div class="st">
+                    <div class="st-icon">📋</div>
+                    <div class="st-lbl">Pending Orders</div>
+                    <div class="st-val" id="s3">0</div>
+                    <div class="st-sub" style="color:var(--amber);">Awaiting</div>
+                </div>
+                <div class="st">
+                    <div class="st-icon">⚡</div>
+                    <div class="st-lbl">TCP Port</div>
+                    <div class="st-val">5601</div>
+                    <div class="st-sub up">Listening</div>
+                </div>
+            </div>
+            <div class="g2">
+                <div class="card">
+                    <div class="card-h"><div class="ch-icon" style="background:var(--indigo-soft);color:var(--indigo);">🚀</div> Quick Actions</div>
+                    <div class="card-b">
+                        <button class="btn btn-primary btn-full" style="margin-bottom:10px;" onclick="go('pat')">+ Register Patient</button>
+                        <button class="btn btn-soft btn-full" style="margin-bottom:10px;" onclick="go('mach')">+ Add Machine</button>
+                        <button class="btn btn-soft btn-full" onclick="go('ord')">+ Create Order</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-h"><div class="ch-icon" style="background:var(--emerald-soft);color:var(--emerald);">💚</div> System Health</div>
+                    <div class="card-b">
+                        <div class="hr"><span>FastAPI Server</span><span class="badge badge-green">● Running</span></div>
+                        <div class="hr"><span>ASTM Listener</span><span class="badge badge-green">● Port 5601</span></div>
+                        <div class="hr"><span>Database</span><span class="badge badge-blue" id="db">Checking…</span></div>
+                        <div class="hr"><span>Protocol Engine</span><span class="badge badge-sky">ASTM + HL7</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PATIENTS -->
+        <div class="pg" id="p-pat">
+            <div class="g2">
+                <div class="card">
+                    <div class="card-h"><div class="ch-icon" style="background:var(--indigo-soft);color:var(--indigo);">👤</div> Register Patient</div>
+                    <div class="card-b">
+                        <div class="fg"><label>MRN</label><input class="fc" id="fM" placeholder="Optional - Auto-generated"></div>
+                        <div class="fg"><label>First Name</label><input class="fc" id="fF" placeholder="John"></div>
+                        <div class="fg"><label>Last Name</label><input class="fc" id="fL" placeholder="Doe"></div>
+                        <div class="fg"><label>Date of Birth</label><input class="fc" id="fD" type="date"></div>
+                        <button class="btn btn-primary" onclick="regP()">Register Patient</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-h"><div class="ch-icon" style="background:var(--emerald-soft);color:var(--emerald);">📋</div> All Patients</div>
+                    <div class="card-b" style="padding:0;"><table class="tbl"><thead><tr><th>MRN</th><th>Name</th><th>DOB</th></tr></thead><tbody id="pT2"><tr><td colspan="3" class="empty"><div class="empty-icon">👤</div><p>No patients yet.</p></td></tr></tbody></table></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MACHINES -->
+        <div class="pg" id="p-mach">
+            <div class="card" style="margin-bottom:18px;">
+                <div class="card-h"><div class="ch-icon" style="background:var(--sky-soft);color:var(--sky);">🔬</div> Add Analyzer</div>
+                <div class="card-b" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+                    <div class="fg" style="flex:1;min-width:140px;margin:0;"><label>Name</label><input class="fc" id="mN" placeholder="Sysmex XN-1000"></div>
+                    <div class="fg" style="flex:1;min-width:100px;margin:0;"><label>Vendor</label><input class="fc" id="mV" placeholder="Sysmex"></div>
+                    <div class="fg" style="width:100px;margin:0;"><label>Protocol</label><select class="fc" id="mP"><option>ASTM</option><option>HL7</option></select></div>
+                    <div class="fg" style="width:100px;margin:0;"><label>Transport</label><select class="fc" id="mT"><option>TCP</option><option>SERIAL</option></select></div>
+                    <div class="fg" style="flex:1;min-width:120px;margin:0;"><label>IP</label><input class="fc" id="mI" placeholder="192.168.1.100"></div>
+                    <div class="fg" style="width:80px;margin:0;"><label>Port</label><input class="fc" id="mPo" type="number" placeholder="5601"></div>
+                    <button class="btn btn-primary" onclick="addM()">+ Add</button>
+                </div>
+            </div>
+            <div class="m-grid" id="mG"><div class="empty" style="grid-column:1/-1;"><div class="empty-icon">🔬</div><p>No machines configured.</p></div></div>
+        </div>
+
+        <!-- ORDERS -->
+        <div class="pg" id="p-ord">
+            <div class="card" style="margin-bottom:18px;">
+                <div class="card-h"><div class="ch-icon" style="background:var(--amber-soft);color:var(--amber);">🏷️</div> Create Order</div>
+                <div class="card-b" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+                    <div class="fg" style="flex:1;min-width:200px;margin:0;"><label>Select Patient</label><select class="fc" id="oP"><option value="">-- Register a Patient first --</option></select></div>
+                    <div class="fg" style="flex:1;min-width:200px;margin:0;"><label>Accession # (Barcode)</label><input class="fc" id="oA" placeholder="Optional - Auto-generated"></div>
+                    <button class="btn btn-green" onclick="mkO()">Generate</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-h"><div class="ch-icon" style="background:var(--indigo-soft);color:var(--indigo);">📊</div> Order History</div>
+                <div class="card-b" style="padding:0;"><table class="tbl"><thead><tr><th>Accession #</th><th>Patient</th><th>Status</th></tr></thead><tbody id="oT"><tr><td colspan="3" class="empty"><div class="empty-icon">📋</div><p>No orders yet.</p></td></tr></tbody></table></div>
+            </div>
+        </div>
+
+        <!-- RESULTS -->
+        <div class="pg" id="p-res">
+            <div class="card">
+                <div class="card-h">
+                    <div class="ch-icon" style="background:var(--rose-soft);color:var(--rose);">📊</div> 
+                    <span>Test Results</span>
+                    <button class="btn btn-ghost" onclick="clearAllResults()" style="margin-left:auto; padding: 4px 10px; font-size:11px;">Clear Results</button>
+                </div>
+                <div class="card-b" style="padding:0;">
+                    <table class="tbl">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Barcode / Accession</th>
+                                <th>Test Code</th>
+                                <th>Raw Code</th>
+                                <th>Value</th>
+                                <th>Unit</th>
+                                <th>Flag</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rT">
+                            <tr>
+                                <td colspan="7" class="empty">
+                                    <div class="empty-icon">📊</div>
+                                    <p>Results appear here when received from analyzers.</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+const pts = [], ords = [], ms = [], resList = [];
+const titles = {dash: 'Dashboard', pat: 'Patient Management', mach: 'Machine Configuration', ord: 'Test Orders', res: 'Test Results'};
+
+function go(p) {
+    document.querySelectorAll('.pg').forEach(x => x.classList.remove('on'));
+    document.querySelectorAll('.sb-item').forEach(x => x.classList.remove('on'));
+    document.getElementById('p-' + p).classList.add('on');
+    document.getElementById('n-' + p).classList.add('on');
+    document.getElementById('pT').textContent = titles[p];
+    if (innerWidth < 768) tog();
+}
+function tog() {
+    document.getElementById('sb').classList.toggle('open');
+    document.getElementById('ov').classList.toggle('show');
+}
+function toast(m, ok = true) {
+    const c = document.getElementById('toasts'), t = document.createElement('div');
+    t.className = 'toast ' + (ok ? 'toast-ok' : 'toast-err');
+    t.textContent = (ok ? '✓ ' : '✕ ') + m;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+}
+
+async function regP() {
+    const mrn = document.getElementById('fM').value, fn = document.getElementById('fF').value, ln = document.getElementById('fL').value, dob = document.getElementById('fD').value || null;
+    if (!mrn || !fn || !ln) return toast('Fill all required fields', false);
+    try {
+        const r = await fetch('/api/v1/patients/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({mrn, first_name: fn, last_name: ln, dob})
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.detail);
+        toast(`${fn} ${ln} registered`);
+        ['fM', 'fF', 'fL'].forEach(x => document.getElementById(x).value = '');
+        await fetchData();
+    } catch (e) {
+        toast(e.message, false);
+    }
+}
+
+function rP() {
+    const b = document.getElementById('pT2');
+    if (!pts.length) {
+        b.innerHTML = '<tr><td colspan="3" class="empty"><div class="empty-icon">👤</div><p>No patients yet.</p></td></tr>';
+        return;
+    }
+    b.innerHTML = pts.map(p => `<tr>
+        <td style="color:var(--indigo);font-weight:700;">${p.mrn}</td>
+        <td>${p.first_name} ${p.last_name}</td>
+        <td>${p.dob || '—'}</td>
+    </tr>`).join('');
+}
+
+async function addM() {
+    const name = document.getElementById('mN').value, vendor = document.getElementById('mV').value, protocol = document.getElementById('mP').value, transport = document.getElementById('mT').value, ip_address = document.getElementById('mI').value, port = parseInt(document.getElementById('mPo').value) || null;
+    if (!name || !vendor) return toast('Name & Vendor required', false);
+    try {
+        const r = await fetch('/api/v1/machines/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, vendor, protocol, transport, ip_address, port, is_active: true})
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.detail);
+        toast(`"${name}" added`);
+        ['mN', 'mV', 'mI', 'mPo'].forEach(x => document.getElementById(x).value = '');
+        await fetchData();
+    } catch (e) {
+        toast(e.message, false);
+    }
+}
+
+function rM() {
+    const g = document.getElementById('mG');
+    if (!ms.length) {
+        g.innerHTML = '<div class="empty" style="grid-column:1/-1;"><div class="empty-icon">🔬</div><p>No machines configured.</p></div>';
+        return;
+    }
+    g.innerHTML = ms.map(m => `<div class="mc"><div class="mc-top"><h4>${m.name}</h4><span class="badge ${m.is_active ? 'badge-green' : 'badge-rose'}">${m.is_active ? '● Online' : '● Offline'}</span></div><div class="mc-row"><span class="k">Vendor</span><span class="v">${m.vendor}</span></div><div class="mc-row"><span class="k">Protocol</span><span class="v">${m.protocol}</span></div><div class="mc-row"><span class="k">Transport</span><span class="v">${m.transport}</span></div><div class="mc-row"><span class="k">Address</span><span class="v">${m.ip_address || '—'}:${m.port || '—'}</span></div></div>`).join('');
+}
+
+async function mkO() {
+    const pid = document.getElementById('oP').value, acc = document.getElementById('oA').value || null;
+    if (!pid) return toast('Please select a patient', false);
+    try {
+        const r = await fetch(`/api/v1/patients/${pid}/orders`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({accession_number: acc})
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.detail);
+        document.getElementById('oA').value = '';
+        toast(`Order created for ${d.accession_number}`);
+        await fetchData();
+    } catch (e) {
+        toast(e.message, false);
+    }
+}
+
+function rO() {
+    const b = document.getElementById('oT');
+    if (!ords.length) {
+        b.innerHTML = '<tr><td colspan="3" class="empty"><div class="empty-icon">📋</div><p>No orders yet.</p></td></tr>';
+        return;
+    }
+    b.innerHTML = ords.map(o => {
+        const p = pts.find(x => x.id === o.patient_id);
+        const pName = p ? `${p.first_name} ${p.last_name} (${p.mrn})` : o.patient_id;
+        return `<tr>
+            <td style="color:var(--indigo);font-weight:700;font-family:monospace;">${o.accession_number}</td>
+            <td>${pName}</td>
+            <td><span class="badge badge-blue">${o.status}</span></td>
+        </tr>`;
+    }).join('');
+}
+
+function rR() {
+    const b = document.getElementById('rT');
+    if (!resList.length) {
+        b.innerHTML = '<tr><td colspan="7" class="empty"><div class="empty-icon">📊</div><p>Results appear here when received from analyzers.</p></td></tr>';
+        return;
+    }
+    b.innerHTML = resList.map(r => {
+        let flagClass = 'badge-blue';
+        if (r.flag === 'H' || r.flag === 'C') flagClass = 'badge-rose';
+        else if (r.flag === 'L') flagClass = 'badge-amber';
+        else if (r.flag === 'N' || r.flag === 'Normal') flagClass = 'badge-green';
+        
+        const timeStr = new Date(r.created_at).toLocaleString();
+        return `<tr>
+            <td style="font-size:11px;color:var(--text-muted);">${timeStr}</td>
+            <td style="font-family:monospace;font-weight:700;">${r.accession_number || '—'}</td>
+            <td style="color:var(--indigo);font-weight:700;">${r.test_code}</td>
+            <td style="font-size:12px;color:var(--text-sec);">${r.raw_test_code}</td>
+            <td style="font-weight:800;font-size:14px;">${r.value}</td>
+            <td style="font-size:12px;color:var(--text-muted);">${r.unit || '—'}</td>
+            <td><span class="badge ${flagClass}">${r.flag || 'N'}</span></td>
+        </tr>`;
+    }).join('');
+}
+
+async function clearAllResults() {
+    if (confirm("Are you sure you want to clear all results from the database?")) {
+        try {
+            const r = await fetch('/api/v1/results/clear', { method: 'DELETE' });
+            if (r.ok) {
+                toast("All results cleared");
+                await fetchData();
+            }
+        } catch (e) {
+            toast("Error clearing results: " + e.message, false);
+        }
+    }
+}
+
+function populatePatientDropdown() {
+    const s = document.getElementById('oP');
+    if (!s) return;
+    if (!pts.length) {
+        s.innerHTML = '<option value="">-- Register a Patient first --</option>';
+        return;
+    }
+    const currentVal = s.value;
+    s.innerHTML = pts.map(p => `<option value="${p.id}">${p.first_name} ${p.last_name} (${p.mrn})</option>`).join('');
+    if (pts.find(p => p.id === currentVal)) {
+        s.value = currentVal;
+    }
+}
+
+async function fetchData() {
+    try {
+        fetch('/health')
+            .then(r => r.ok && (document.getElementById('db').textContent = '● Connected'))
+            .catch(() => { document.getElementById('db').textContent = '● Offline'; });
+
+        const rPat = await fetch('/api/v1/patients/');
+        if (rPat.ok) {
+            const d = await rPat.json();
+            pts.length = 0;
+            pts.push(...d);
+            rP();
+            populatePatientDropdown();
+            document.getElementById('s2').textContent = pts.length;
+        }
+
+        const rMac = await fetch('/api/v1/machines/');
+        if (rMac.ok) {
+            const d = await rMac.json();
+            ms.length = 0;
+            ms.push(...d);
+            rM();
+            document.getElementById('s1').textContent = ms.length;
+        }
+
+        const rOrd = await fetch('/api/v1/patients/orders');
+        if (rOrd.ok) {
+            const d = await rOrd.json();
+            ords.length = 0;
+            ords.push(...d);
+            rO();
+            document.getElementById('s3').textContent = ords.length;
+        }
+
+        const rRes = await fetch('/api/v1/results/');
+        if (rRes.ok) {
+            const d = await rRes.json();
+            resList.length = 0;
+            resList.push(...d);
+            rR();
+        }
+    } catch(e) {
+        console.error("Data fetch error", e);
+    }
+}
+
+fetchData();
+setInterval(fetchData, 3000);
+</script>
+</body>
+</html>

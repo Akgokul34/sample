@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIC Simulator — Virtual Analyzer Control</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+        :root {
+            --bg:#0f0c1b;
+            --surface:#181528;
+            --border:#2a2542;
+            --text:#e4e0f3;
+            --text-sec:#9c95be;
+            --text-muted:#605784;
+            --orange:#ff6b00;
+            --orange-soft:rgba(255,107,0,0.1);
+            --orange-border:rgba(255,107,0,0.3);
+            --green:#10b981;
+            --green-soft:rgba(16,185,129,0.1);
+            --red:#ef4444;
+            --red-soft:rgba(239,68,68,0.1);
+            --blue:#3b82f6;
+            --blue-soft:rgba(59,130,246,0.1);
+            --teal:#06b6d4;
+            --teal-soft:rgba(6,182,212,0.1);
+            --purple:#8b5cf6;
+            --purple-soft:rgba(139,92,246,0.1);
+            --r:16px;
+            --rs:10px;
+        }
+        body { font-family:'Outfit',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased; }
+
+        .app { max-width:1100px;margin:0 auto;padding:40px 24px; }
+
+        /* ─── HEADER ─── */
+        .hdr { display:flex;align-items:center;justify-content:space-between;padding-bottom:24px;border-bottom:1px solid var(--border);margin-bottom:32px;flex-wrap:wrap;gap:16px; }
+        .hdr-left { display:flex;align-items:center;gap:18px; }
+        .hdr-icon {
+            width:56px;height:56px;
+            background:linear-gradient(135deg,var(--orange),#d0006f);
+            border-radius:18px;display:flex;align-items:center;justify-content:center;
+            font-size:26px;color:#fff;box-shadow:0 8px 24px rgba(255,107,0,0.25);
+        }
+        .hdr h1 { font-size:26px;font-weight:900;letter-spacing:-0.5px; }
+        .hdr p { font-size:13px;color:var(--text-sec);margin-top:2px; }
+        .hdr-status { display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-sec);font-weight:700;background:#221e38;padding:8px 16px;border-radius:30px;border:1px solid var(--border); }
+        .dot { width:9px;height:9px;border-radius:50%; }
+        .dot-on { background:var(--green);box-shadow:0 0 10px var(--green); animation:blink 1.5s infinite; }
+        .dot-off { background:var(--red); }
+        @keyframes blink{0%,100%{opacity:1;}50%{opacity:0.4;}}
+
+        /* ─── STATS ─── */
+        .stats { display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:32px; }
+        .mst {
+            background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+            padding:20px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.2);
+            transition:transform 0.25s,box-shadow 0.25s;position:relative;overflow:hidden;
+        }
+        .mst:hover { transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,0.3); }
+        .mst::after { content:'';position:absolute;bottom:0;left:0;right:0;height:4px; }
+        .mst:nth-child(1)::after { background:var(--orange); }
+        .mst:nth-child(2)::after { background:var(--green); }
+        .mst:nth-child(3)::after { background:var(--red); }
+        .mst:nth-child(4)::after { background:var(--teal); }
+        .mst .val { font-size:32px;font-weight:900;letter-spacing:-1px; }
+        .mst .lbl { font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:1px;margin-top:6px;font-weight:700; }
+
+        /* ─── GRID ─── */
+        .grid { display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:32px; }
+        .full { grid-column:1/-1; }
+
+        /* ─── CARD ─── */
+        .card {
+            background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+            overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.15);
+            display:flex;flex-direction:column;
+        }
+        .card-h {
+            padding:18px 24px;border-bottom:1px solid var(--border);
+            font-size:15px;font-weight:800;display:flex;align-items:center;gap:10px;
+            background:rgba(255,255,255,0.01);
+        }
+        .card-h .ci {
+            width:32px;height:32px;border-radius:var(--rs);
+            display:flex;align-items:center;justify-content:center;font-size:15px;
+        }
+        .card-b { padding:24px; flex:1; }
+
+        /* ─── FORM ─── */
+        .fg { margin-bottom:18px; }
+        .fg label { display:block;font-size:11px;font-weight:800;color:var(--text-sec);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px; }
+        .fc {
+            width:100%;padding:11px 16px;border:2px solid var(--border);border-radius:var(--rs);
+            font-size:14px;font-family:inherit;color:var(--text);background:#100d1e;
+            transition:border-color 0.2s,box-shadow 0.2s;
+        }
+        .fc:focus { outline:none;border-color:var(--orange);box-shadow:0 0 0 4px var(--orange-soft); }
+        .fc::placeholder { color:var(--text-muted); }
+        .fc-big { font-family:'IBM Plex Mono',monospace;font-size:22px;text-align:center;letter-spacing:4px;font-weight:600;padding:14px;color:var(--orange);background:#080611; }
+        select.fc { cursor:pointer; }
+
+        /* ─── BUTTONS ─── */
+        .btn {
+            display:inline-flex;align-items:center;gap:8px;padding:12px 24px;border-radius:var(--rs);
+            font-size:14px;font-weight:800;font-family:inherit;cursor:pointer;border:none;transition:all 0.2s;
+        }
+        .btn-fire {
+            background:linear-gradient(135deg,var(--orange),#dc2626);color:#fff;
+            width:100%;justify-content:center;font-size:15px;
+            box-shadow:0 6px 20px rgba(255,107,0,0.3);
+        }
+        .btn-fire:hover { transform:translateY(-2px);box-shadow:0 8px 24px rgba(255,107,0,0.4); }
+        .btn-fire:active { transform:scale(0.98); }
+        .btn-fire:disabled { opacity:0.5;cursor:not-allowed;transform:none; }
+        .btn-ghost { background:#221e38;color:var(--text);border:1px solid var(--border);padding:10px 18px;font-size:13px; }
+        .btn-ghost:hover { background:var(--border); }
+
+        /* ─── CHIPS ─── */
+        .chips { display:flex;flex-wrap:wrap;gap:10px; }
+        .chip {
+            padding:10px 18px;border-radius:30px;font-size:12.5px;font-weight:700;
+            cursor:pointer;border:2px solid var(--border);
+            background:var(--bg);color:var(--text-sec);transition:all 0.2s;
+        }
+        .chip:hover { border-color:var(--orange);color:#fff; }
+        .chip.on {
+            background:var(--orange-soft);color:#fff;border-color:var(--orange);
+            box-shadow:0 4px 12px rgba(255,107,0,0.15);
+        }
+
+        /* ─── TERMINAL ─── */
+        .term {
+            background:#080611;border-radius:var(--rs);padding:20px;
+            font-family:'IBM Plex Mono',monospace;font-size:13px;color:#a6adc8;
+            min-height:350px;max-height:450px;overflow-y:auto;line-height:2.0;
+            border:1px solid var(--border);
+        }
+        .term::-webkit-scrollbar { width:6px; }
+        .term::-webkit-scrollbar-thumb { background:var(--border);border-radius:3px; }
+        .ll { padding:2px 0;animation:lf .2s ease; border-bottom: 1px solid rgba(255,255,255,0.02); }
+        @keyframes lf{from{opacity:0;transform:translateY(2px);}}
+        .lt{color:#585b70;} /* timestamp */
+        .li{color:#89b4fa;} /* info */
+        .ls{color:#a6e3a1;} /* success / RX ack */
+        .le{color:#f38ba8;} /* error */
+        .lw{color:#f9e2af;} /* warning */
+        .ld{color:#fab387;} /* barcode data */
+        .lh{color:#cba6f7;} /* TX bytes */
+
+        /* ─── SCENARIO INFO ─── */
+        .sc-info { margin-top:18px;padding:16px;background:#100d1e;border-radius:var(--rs);border:1px solid var(--border); }
+        .sc-info .sl { font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;font-weight:800;margin-bottom:6px; }
+        .sc-info .sn { font-size:16px;font-weight:800;color:#fff; }
+        .sc-info .sd { font-size:13px;color:var(--text-sec);margin-top:4px; }
+
+        /* ─── PROTO BADGE ─── */
+        .proto { display:inline-flex;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:800;letter-spacing:0.5px;font-family:'IBM Plex Mono',monospace; }
+        .proto-astm { background:var(--blue-soft);color:var(--blue);border:1px solid rgba(59,130,246,0.3); }
+        .proto-hl7 { background:var(--teal-soft);color:var(--teal);border:1px solid rgba(6,182,212,0.3); }
+
+        /* ─── RESPONSIVE ─── */
+        @media(max-width:900px){ .grid{grid-template-columns:1fr;} .stats{grid-template-columns:repeat(2,1fr);} }
+        @media(max-width:480px){ .stats{grid-template-columns:1fr 1fr;gap:10px;} .app{padding:20px 14px;} .chips{gap:6px;} .chip{padding:8px 14px;font-size:12px;} .fc-big{font-size:18px;} }
+    </style>
+</head>
+<body>
+<div class="app">
+    <header class="hdr">
+        <div class="hdr-left">
+            <div class="hdr-icon">🧪</div>
+            <div><h1>LIC Simulator</h1><p>Virtual Analyzer Control Panel</p></div>
+        </div>
+        <div class="hdr-status"><div class="dot dot-off" id="sDot"></div>&nbsp;<span id="sTxt">Disconnected</span></div>
+    </header>
+
+    <div class="stats">
+        <div class="mst"><div class="val" style="color:var(--orange);" id="sqr">0</div><div class="lbl">Successful Runs</div></div>
+        <div class="mst"><div class="val" style="color:var(--green);" id="sak">0</div><div class="lbl">ACKs Logged</div></div>
+        <div class="mst"><div class="val" style="color:var(--red);" id="snk">0</div><div class="lbl">NAKs Logged</div></div>
+        <div class="mst"><div class="val" style="color:var(--teal);" id="sby">0</div><div class="lbl">Bytes Transmitted</div></div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <div class="card-h"><div class="ci" style="background:var(--orange-soft);color:var(--orange);">📡</div> Simulator Config</div>
+            <div class="card-b">
+                <div class="fg"><label>Target Server</label><div style="display:flex;gap:8px;"><input class="fc" id="tH" value="127.0.0.1" style="flex:2;"><input class="fc" id="tP" value="5601" type="number" style="flex:1;"></div></div>
+                <div class="fg"><label>Accession / Barcode</label><input class="fc fc-big" id="barIn" value="ACC-001" placeholder="SCAN HERE" autofocus></div>
+                <div class="fg"><label>Protocol Mode</label><select class="fc" id="prSel" onchange="switchProtocol()"><option value="ASTM">ASTM E1381/E1394</option><option value="HL7">HL7 v2 (MLLP)</option></select></div>
+                
+                <div class="fg" id="resFields" style="border-top:1px dashed var(--border); padding-top:18px; margin-top:18px; display:none;">
+                    <label>Simulated Test Result Data</label>
+                    <div style="display:flex;gap:8px;">
+                        <input class="fc" id="rCode" value="WBC" placeholder="Code (e.g. WBC)" style="flex:1.2;">
+                        <input class="fc" id="rVal" value="12.5" placeholder="Value" style="flex:1;">
+                        <input class="fc" id="rUnit" value="10^3/uL" placeholder="Unit" style="flex:1;">
+                    </div>
+                </div>
+
+                <button class="btn btn-fire" id="fireBtn" onclick="fire()" style="margin-top:8px;">⚡ RUN SIMULATION</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-h"><div class="ci" style="background:var(--red-soft);color:var(--red);">💥</div> Scenario Control</div>
+            <div class="card-b">
+                <div class="fg"><label>Active Scenario</label>
+                    <div class="chips" id="scenarioContainer">
+                        <!-- Chips loaded dynamically -->
+                    </div>
+                </div>
+                <div class="sc-info"><div class="sl">Selected Scenario Description</div><div class="sn" id="scN">—</div><div class="sd" id="scD">—</div></div>
+                <div style="margin-top:20px;display:flex;align-items:center;gap:12px;justify-content:space-between;">
+                    <button class="btn btn-ghost" onclick="clr()">Clear Log</button>
+                    <span class="proto proto-astm" id="pB">ASTM</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card full">
+            <div class="card-h"><div class="ci" style="background:var(--green-soft);color:var(--green);">▶</div> Real-Time Communication Byte Log</div>
+            <div class="card-b" style="padding:10px;">
+                <div class="term" id="log">
+<div class="ll"><span class="lt">[System]</span> Virtual Analyzer simulation console ready.</div>
+<div class="ll"><span class="lt">[System]</span> Select a protocol, choose a scenario, and click <span class="ld">RUN SIMULATION</span>.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let sc = 'HAPPY_PATH';
+const st = {q:0,a:0,n:0,b:0};
+let eventSource = null;
+
+const scenarios = {
+    ASTM: [
+        { id: 'HAPPY_PATH', name: '✓ Host Query', desc: 'Queries LIS server for tests. Sends ENQ -> Header -> Query -> EOT. Then handles LIS response download on same connection.' },
+        { id: 'RESULT_UPLOAD', name: '📤 Result Upload', desc: 'Simulates sample result ingestion. Sends ENQ -> Header -> Patient -> Order -> Result -> EOT.' },
+        { id: 'BAD_CHECKSUM', name: '✕ Bad Checksum', desc: 'Sends an invalid checksum frame to test backend reject (NAK) and self-healing retries.' },
+        { id: 'TIMEOUT', name: '⏱ Inactivity Timeout', desc: 'Initiates a session and idles to test if the server closes the socket after 30 seconds of inactivity.' },
+        { id: 'DISCONNECT', name: '⚡ Drop Socket', desc: 'Connects and immediately drops the TCP socket to check transport resilience.' }
+    ],
+    HL7: [
+        { id: 'HAPPY_PATH', name: '✓ ORU Results', desc: 'Sends standard HL7 result message (ORU^R01) wrapped in MLLP envelope, then parses the returned ACK.' },
+        { id: 'HL7_ALT_SEP', name: '🔀 Alt Delimiters', desc: 'Sends HL7 message using custom delimiters ("/" fields, "*" components) to verify dynamic separator parsing.' },
+        { id: 'HL7_BAD_FRAME', name: '✕ Bad Envelope', desc: 'Sends HL7 message missing MLLP start byte <VT> to verify server security reject.' },
+        { id: 'DISCONNECT', name: '⚡ Drop Socket', desc: 'Connects and immediately drops the TCP socket to verify HL7 listener robustness.' }
+    ]
+};
+
+function switchProtocol() {
+    const pr = document.getElementById('prSel').value;
+    const pB = document.getElementById('pB');
+    pB.textContent = pr;
+    pB.className = pr === 'ASTM' ? 'proto proto-astm' : 'proto proto-hl7';
+    
+    // Update target port defaults
+    document.getElementById('tP').value = pr === 'ASTM' ? '5601' : '5602';
+    
+    // Render scenario chips
+    const container = document.getElementById('scenarioContainer');
+    container.innerHTML = scenarios[pr].map((s, idx) => 
+        `<div class="chip ${idx === 0 ? 'on' : ''}" onclick="pick(this,'${s.id}')">${s.name}</div>`
+    ).join('');
+    
+    // Pick first scenario
+    pick(container.firstElementChild, scenarios[pr][0].id);
+}
+
+function pick(el, s_id) {
+    if (!el) return;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+    el.classList.add('on');
+    sc = s_id;
+    
+    const pr = document.getElementById('prSel').value;
+    const scObj = scenarios[pr].find(x => x.id === s_id);
+    document.getElementById('scN').textContent = scObj.name;
+    document.getElementById('scD').textContent = scObj.desc;
+    
+    // Show/hide custom result fields
+    const resFields = document.getElementById('resFields');
+    if (s_id === 'RESULT_UPLOAD' || pr === 'HL7') {
+        resFields.style.display = 'block';
+    } else {
+        resFields.style.display = 'none';
+    }
+}
+
+function lg(m, c = 'li') {
+    const t = document.getElementById('log'), now = new Date().toLocaleTimeString('en-US', {hour12:false}), d = document.createElement('div');
+    d.className = 'll';
+    d.innerHTML = `<span class="lt">[${now}]</span> <span class="${c}">${m}</span>`;
+    t.appendChild(d);
+    t.scrollTop = t.scrollHeight;
+}
+
+function clr() {
+    document.getElementById('log').innerHTML = '<div class="ll"><span class="lt">[System]</span> Log cleared.</div>';
+}
+
+function upS() {
+    document.getElementById('sqr').textContent = st.q;
+    document.getElementById('sak').textContent = st.a;
+    document.getElementById('snk').textContent = st.n;
+    document.getElementById('sby').textContent = st.b;
+}
+
+function setC(on) {
+    document.getElementById('sDot').className = on ? 'dot dot-on' : 'dot dot-off';
+    document.getElementById('sTxt').textContent = on ? 'Connected' : 'Disconnected';
+}
+
+function fire() {
+    const bc = document.getElementById('barIn').value.trim();
+    if (!bc) {
+        lg('No barcode entered.', 'le');
+        return;
+    }
+    
+    if (eventSource) {
+        eventSource.close();
+    }
+    
+    const host = document.getElementById('tH').value.trim();
+    const port = document.getElementById('tP').value.trim();
+    const protocol = document.getElementById('prSel').value;
+    const test_code = document.getElementById('rCode').value.trim();
+    const test_val = document.getElementById('rVal').value.trim();
+    const test_unit = document.getElementById('rUnit').value.trim();
+    
+    const btn = document.getElementById('fireBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ RUNNING SIMULATION...';
+    
+    lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'lt');
+    lg(`Starting ${protocol} connection -> ${host}:${port}`, 'li');
+    lg(`Scenario: ${sc} | Barcode: ${bc}`, 'li');
+    setC(true);
+    
+    const url = `/api/v1/simulate/stream?barcode=${encodeURIComponent(bc)}` +
+                `&scenario=${encodeURIComponent(sc)}` +
+                `&protocol=${encodeURIComponent(protocol)}` +
+                `&host=${encodeURIComponent(host)}` +
+                `&port=${encodeURIComponent(port)}` +
+                `&test_code=${encodeURIComponent(test_code)}` +
+                `&test_val=${encodeURIComponent(test_val)}` +
+                `&test_unit=${encodeURIComponent(test_unit)}`;
+                
+    eventSource = new EventSource(url);
+    
+    eventSource.onmessage = function(event) {
+        const data = JSON.parse(event.data);
+        const type = data.type;
+        const msg = data.message;
+        
+        if (type === 'info') {
+            lg(msg, 'li');
+        } else if (type === 'tx') {
+            lg(`[TX] ${msg}`, 'lh');
+            st.b += msg.length;
+            upS();
+        } else if (type === 'rx') {
+            lg(`[RX] ${msg}`, 'ls');
+            if (msg.includes('ACK')) st.a++;
+            if (msg.includes('NAK')) st.n++;
+            upS();
+        } else if (type === 'error') {
+            lg(`Error: ${msg}`, 'le');
+            eventSource.close();
+            setC(false);
+            btn.disabled = false;
+            btn.textContent = '⚡ RUN SIMULATION';
+        } else if (type === 'success') {
+            lg(`Success: ${msg}`, 'ls');
+            st.q++;
+            eventSource.close();
+            setC(false);
+            btn.disabled = false;
+            btn.textContent = '⚡ RUN SIMULATION';
+            upS();
+        }
+    };
+    
+    eventSource.onerror = function() {
+        lg("Simulation completed or stream connection disconnected.", 'lt');
+        eventSource.close();
+        setC(false);
+        btn.disabled = false;
+        btn.textContent = '⚡ RUN SIMULATION';
+    };
+}
+
+// Setup keyboard triggers and defaults
+document.getElementById('barIn').addEventListener('keydown', e => { if (e.key === 'Enter') fire(); });
+switchProtocol();
+</script>
+</body>
+</html>
