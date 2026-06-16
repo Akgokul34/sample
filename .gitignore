@@ -5,3 +5,4 @@ dump.py
 *.pyc
 *.sqlite
 *.sql
+*.txt
